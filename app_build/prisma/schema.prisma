@@ -1,0 +1,74 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      String   @default("ATTENDEE") // ATTENDEE, STAFF, ADMIN
+  createdAt DateTime @default(now())
+  
+  tickets   Ticket[]
+  orders    Order[]
+}
+
+model Ticket {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  eventName String
+  section   String
+  row       String
+  seat      String
+  gate      String
+  status    String   @default("ACTIVE") // ACTIVE, SCANNED
+}
+
+model MenuItem {
+  id        String   @id @default(uuid())
+  name      String
+  price     Float
+  category  String
+  prepTime  String
+  icon      String
+  inStock   Boolean  @default(true)
+  
+  orderItems OrderItem[]
+}
+
+model Order {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  status    String   @default("PENDING") // PENDING, PREPARING, READY, PICKED_UP
+  total     Float
+  createdAt DateTime @default(now())
+  
+  items     OrderItem[]
+}
+
+model OrderItem {
+  id         String   @id @default(uuid())
+  orderId    String
+  order      Order    @relation(fields: [orderId], references: [id])
+  menuItemId String
+  menuItem   MenuItem @relation(fields: [menuItemId], references: [id])
+  quantity   Int
+}
+
+model HubEvent {
+  id        String   @id @default(uuid())
+  type      String   // PLAY, POLL, UPDATE
+  text      String
+  icon      String
+  createdAt DateTime @default(now())
+}
