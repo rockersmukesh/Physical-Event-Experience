@@ -31,7 +31,7 @@ export default function Sidebar() {
               </h1>
             </div>
           </div>
-          <div className="rounded-2xl border border-primary/15 bg-primary/8 p-4">
+          {/* <div className="rounded-2xl border border-primary/15 bg-primary/8 p-4">
             <p className="font-label text-[10px] uppercase tracking-[0.35em] text-on-surface-variant">
               Event readiness
             </p>
@@ -44,7 +44,7 @@ export default function Sidebar() {
                 Stable
               </span>
             </div>
-          </div>
+          </div> */}
        </div>
        
        <nav className="flex-1 space-y-4 px-4 py-8">

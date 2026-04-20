@@ -63,22 +63,22 @@ export default async function SmartDashboard() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(173,199,255,0.2),transparent_35%),radial-gradient(circle_at_bottom_left,rgba(171,214,0,0.14),transparent_30%)]"></div>
           <div className="relative z-10 space-y-8">
             <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
-              <div>
+              <div className="min-w-0">
                 <div className="mb-4 flex items-center gap-3">
                   <span className="h-3 w-3 animate-pulse rounded-full bg-tertiary shadow-[0_0_10px_#abd600]"></span>
                   <span className="font-label text-sm font-bold uppercase tracking-[0.3em] text-tertiary">
                     Live venue
                   </span>
                 </div>
-                <h2 className="font-headline text-5xl font-black uppercase leading-none text-white sm:text-6xl">
+                <h2 className="font-headline text-5xl font-black uppercase leading-none text-white sm:text-6xl break-words">
                   {ticket.eventName}
                 </h2>
-                <p className="mt-4 text-lg text-on-surface-variant">
+                <p className="mt-4 text-lg text-on-surface-variant truncate">
                   {ticket.venueName} • Section {ticket.section} • Row {ticket.row} • Seat {ticket.seat}
                 </p>
               </div>
 
-              <div className="w-full max-w-sm rounded-[1.5rem] border border-outline-variant/15 bg-surface-variant/35 p-5 backdrop-blur-xl">
+              <div className="w-full max-w-md shrink-0 lg:w-[320px] rounded-[1.5rem] border border-outline-variant/15 bg-surface-variant/35 p-5 backdrop-blur-xl">
                 <p className="font-label text-xs uppercase tracking-[0.28em] text-on-surface-variant">
                   Event start
                 </p>
