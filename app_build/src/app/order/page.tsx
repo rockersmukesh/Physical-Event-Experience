@@ -1,165 +1,396 @@
 "use client";
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+
+import { useEffect, useMemo, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import VenueIcon from "@/components/VenueIcon";
+import type { FulfillmentMode, MenuItem, OrderReceipt } from "@/lib/stadium-data";
+
+type CartItem = MenuItem & { qty: number };
+type MenuFilter = "All Items" | "Food" | "Drinks";
+
+const fulfillmentModes: {
+  id: FulfillmentMode;
+  label: string;
+  eta: string;
+  detail: string;
+}[] = [
+  {
+    id: "pickup",
+    label: "Express Pickup",
+    eta: "6 min",
+    detail: "Skip the main line with the dedicated mobile pickup shelf at Burger Stand C.",
+  },
+  {
+    id: "seat",
+    label: "In-Seat Delivery",
+    eta: "14 min",
+    detail: "Delivered directly to Section 114, Row G, Seat 23 for the live demo flow.",
+  },
+];
+
+const menuFilters: MenuFilter[] = ["All Items", "Food", "Drinks"];
 
 export default function ExpressOrder() {
-  const [cart, setCart] = useState<{id: string, name: string, price: number, qty: number}[]>([]);
-  const [menu, setMenu] = useState<any[]>([]);
+  const [cart, setCart] = useState<CartItem[]>([]);
+  const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [mode, setMode] = useState<FulfillmentMode>("pickup");
+  const [menuFilter, setMenuFilter] = useState<MenuFilter>("All Items");
+  const [latestOrder, setLatestOrder] = useState<OrderReceipt | null>(null);
 
   useEffect(() => {
-    fetch('/api/menu')
-      .then(res => res.json())
-      .then(data => {
-         setMenu(data);
-         setLoading(false);
-      });
+    let cancelled = false;
+
+    async function loadMenu() {
+      try {
+        const response = await fetch("/api/menu");
+
+        if (!response.ok) {
+          throw new Error("Failed to load menu");
+        }
+
+        const data = (await response.json()) as MenuItem[];
+
+        if (!cancelled) {
+          setMenu(data);
+          setError(null);
+        }
+      } catch (caughtError) {
+        console.error("Unable to load menu from the demo database:", caughtError);
+        if (!cancelled) {
+          setError("Venue menu is unavailable. Check the database connection and seed data.");
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadMenu();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  const addToCart = (item: any) => {
-    setCart(prev => {
-      const exists = prev.find(i => i.id === item.id);
-      if (exists) {
-        return prev.map(i => i.id === item.id ? { ...i, qty: i.qty + 1 } : i);
+  useEffect(() => {
+    if (!toast) {
+      return undefined;
+    }
+
+    const timeout = window.setTimeout(() => setToast(null), 2400);
+    return () => window.clearTimeout(timeout);
+  }, [toast]);
+
+  const filteredMenu = useMemo(() => {
+    if (menuFilter === "All Items") {
+      return menu;
+    }
+
+    return menu.filter((item) => item.category === menuFilter);
+  }, [menu, menuFilter]);
+
+  const addToCart = (item: MenuItem) => {
+    setCart((previous) => {
+      const existing = previous.find((entry) => entry.id === item.id);
+
+      if (existing) {
+        return previous.map((entry) =>
+          entry.id === item.id ? { ...entry, qty: entry.qty + 1 } : entry,
+        );
       }
-      return [...prev, { ...item, qty: 1 }];
+
+      return [...previous, { ...item, qty: 1 }];
     });
-    
-    setToast(`Added ${item.name} to cart!`);
-    setTimeout(() => setToast(null), 2000);
+
+    setToast(`Added ${item.name} to cart`);
   };
 
-  const total = cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+  const total = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const selectedMode = fulfillmentModes.find((item) => item.id === mode) ?? fulfillmentModes[0];
+
+  async function handleCheckout() {
+    if (cart.length === 0 || submitting) {
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fulfillmentMode: mode,
+          items: cart.map((item) => ({ menuItemId: item.id, quantity: item.qty })),
+        }),
+      });
+
+      const payload = (await response.json()) as OrderReceipt | { error: string };
+
+      if (!response.ok || "error" in payload) {
+        throw new Error("error" in payload ? payload.error : "Failed to create order");
+      }
+
+      setLatestOrder(payload);
+      setCart([]);
+      setToast(
+        payload.fulfillmentMode === "pickup"
+          ? `Order ${payload.id.slice(0, 8)} is ready for pickup`
+          : `Order ${payload.id.slice(0, 8)} is on the way to your seat`,
+      );
+    } catch (caughtError) {
+      console.error("Unable to create demo order:", caughtError);
+      setError(caughtError instanceof Error ? caughtError.message : "Failed to create order.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
-    <motion.main 
+    <motion.main
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-[1600px] mx-auto p-8 h-screen flex flex-col pt-12 relative"
+      className="relative mx-auto flex min-h-[100dvh] max-w-[1600px] flex-col p-4 pt-8 sm:p-6 sm:pt-10 lg:p-8 lg:pt-12"
     >
-      <header className="mb-8">
-        <p className="font-label text-primary tracking-widest uppercase text-sm mb-1">Section 114 Concessions</p>
-        <h1 className="font-headline text-4xl font-black uppercase text-on-surface">Express Order</h1>
+      <header className="mb-6 space-y-4 lg:mb-8">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="mb-1 font-label text-sm uppercase tracking-widest text-primary">
+              Queue-aware concessions
+            </p>
+            <h1 className="font-headline text-4xl font-black uppercase text-on-surface">
+              Express Order
+            </h1>
+          </div>
+          <div className="rounded-full border border-outline-variant/20 bg-surface-container-low px-4 py-2 text-xs font-bold uppercase tracking-[0.25em] text-on-surface-variant">
+            Connected to Neon demo data
+          </div>
+        </div>
+
+        <div className="grid gap-3 lg:grid-cols-2">
+          {fulfillmentModes.map((option) => {
+            const active = option.id === mode;
+            return (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setMode(option.id)}
+                className={`rounded-2xl border p-4 text-left transition ${
+                  active
+                    ? "border-primary bg-primary/10 shadow-[0_0_25px_rgba(173,199,255,0.15)]"
+                    : "border-outline-variant/20 bg-surface-container-low"
+                }`}
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <p className="font-headline text-lg font-bold uppercase text-on-surface">
+                      {option.label}
+                    </p>
+                    <p className="mt-1 text-sm text-on-surface-variant">{option.detail}</p>
+                  </div>
+                  <div className="rounded-full border border-outline-variant/20 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-tertiary">
+                    {option.eta}
+                  </div>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </header>
 
-      {/* Toast Notification */}
       <AnimatePresence>
-        {toast && (
-          <motion.div 
-            initial={{ opacity: 0, y: -20, x: '-50%' }}
-            animate={{ opacity: 1, y: 0, x: '-50%' }}
-            exit={{ opacity: 0, y: -20, x: '-50%' }}
-            className="absolute top-10 left-1/2 z-50 bg-primary text-on-primary font-label font-bold px-6 py-3 rounded-full shadow-[0_5px_20px_rgba(173,199,255,0.4)]"
+        {toast ? (
+          <motion.div
+            initial={{ opacity: 0, y: -20, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: -20, x: "-50%" }}
+            className="absolute left-1/2 top-6 z-50 rounded-full bg-primary px-6 py-3 font-label font-bold text-on-primary shadow-[0_5px_20px_rgba(173,199,255,0.4)]"
           >
             {toast}
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
 
-      <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-4 gap-8 overflow-hidden pb-4">
-        
-        {/* Left: Menu & Categories */}
-        <section className="lg:col-span-2 xl:col-span-3 flex flex-col bg-surface-container-low border border-outline-variant/15 rounded-2xl overflow-hidden shadow-xl">
-           <div className="flex border-b border-outline-variant/15 px-6 pt-4 gap-6 bg-surface-container-highest">
-              <button className="font-label uppercase text-sm font-bold text-primary border-b-2 border-primary pb-3 transition-colors">All Items</button>
-              <button className="font-label uppercase text-sm font-bold text-on-surface-variant hover:text-on-surface pb-3 transition-colors">Food</button>
-              <button className="font-label uppercase text-sm font-bold text-on-surface-variant hover:text-on-surface pb-3 transition-colors">Drinks</button>
-           </div>
-           
-           <div className="flex-1 overflow-y-auto p-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {loading ? (
-                 <div className="col-span-2 text-center py-20 font-label text-on-surface-variant uppercase tracking-widest">Loading MySQL Database...</div>
+      <div className="grid flex-1 grid-cols-1 gap-6 overflow-hidden pb-4 lg:grid-cols-3 xl:grid-cols-4">
+        <section className="flex flex-col overflow-hidden rounded-2xl border border-outline-variant/15 bg-surface-container-low shadow-xl lg:col-span-2 xl:col-span-3">
+          <div className="flex flex-wrap gap-3 border-b border-outline-variant/15 bg-surface-container-highest px-6 pt-4">
+            {menuFilters.map((filter) => (
+              <button
+                key={filter}
+                type="button"
+                onClick={() => setMenuFilter(filter)}
+                className={`border-b-2 pb-3 font-label text-sm font-bold uppercase transition-colors ${
+                  menuFilter === filter
+                    ? "border-primary text-primary"
+                    : "border-transparent text-on-surface-variant hover:text-on-surface"
+                }`}
+              >
+                {filter}
+              </button>
+            ))}
+          </div>
+
+          <div className="grid flex-1 grid-cols-1 gap-4 overflow-y-auto p-6 md:grid-cols-2">
+            {loading ? (
+              <div className="col-span-2 py-20 text-center font-label uppercase tracking-widest text-on-surface-variant">
+                Loading venue menu...
+              </div>
+            ) : error ? (
+              <div className="col-span-2 rounded-2xl border border-error/30 bg-error/8 p-6 text-sm text-on-surface">
+                {error}
+              </div>
+            ) : (
+              filteredMenu.map((item) => (
+                <motion.article
+                  whileHover={{ scale: item.inStock ? 1.02 : 1 }}
+                  whileTap={{ scale: item.inStock ? 0.98 : 1 }}
+                  key={item.id}
+                  className={`flex items-center justify-between rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 transition ${
+                    item.inStock ? "cursor-pointer hover:border-primary/40" : "opacity-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full border border-outline-variant/15 bg-surface-container-high text-primary transition">
+                      <VenueIcon name={item.icon} className="text-[1.2rem]" />
+                    </div>
+                    <div>
+                      <h2 className="font-body text-lg font-semibold text-on-surface">{item.name}</h2>
+                      <p className="mt-1 font-label text-xs uppercase tracking-wider text-tertiary">
+                        {item.inStock ? `Ready in ${item.prepTime}` : "Currently unavailable"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-3">
+                    <span className="font-headline text-xl font-black text-on-surface">
+                      ${item.price.toFixed(2)}
+                    </span>
+                    <button
+                      type="button"
+                      disabled={!item.inStock}
+                      onClick={() => addToCart(item)}
+                      className={`rounded-full px-4 py-1.5 font-label text-xs font-bold uppercase whitespace-nowrap transition ${
+                        item.inStock
+                          ? "bg-surface-variant text-on-surface hover:bg-primary hover:text-on-primary"
+                          : "cursor-not-allowed bg-surface-container-high text-on-surface-variant"
+                      }`}
+                    >
+                      Add +
+                    </button>
+                  </div>
+                </motion.article>
+              ))
+            )}
+          </div>
+        </section>
+
+        <aside className="flex flex-col overflow-hidden rounded-2xl border border-outline-variant/15 bg-surface-container-low shadow-xl">
+          <div className="flex items-center justify-between border-b border-outline-variant/15 bg-surface-container-highest p-6">
+            <h3 className="font-headline text-lg font-bold uppercase text-on-surface">Your Cart</h3>
+            <motion.span
+              key={cart.length}
+              initial={{ scale: 1.5, rotate: -10 }}
+              animate={{ scale: 1, rotate: 0 }}
+              className="inline-block rounded-full bg-primary/20 px-3 py-1 font-label text-xs font-bold uppercase text-primary"
+            >
+              {cart.length} Items
+            </motion.span>
+          </div>
+
+          <div className="border-b border-outline-variant/15 bg-surface-container-lowest p-4">
+            <p className="font-label text-xs uppercase tracking-widest text-on-surface-variant">
+              Fulfillment
+            </p>
+            <p className="mt-1 font-headline text-lg font-bold uppercase text-on-surface">
+              {selectedMode.label}
+            </p>
+            <p className="mt-1 text-sm text-on-surface-variant">
+              Estimated completion: {selectedMode.eta}
+            </p>
+          </div>
+
+          {latestOrder ? (
+            <div className="border-b border-outline-variant/15 bg-primary/8 p-4">
+              <p className="font-label text-xs uppercase tracking-widest text-primary">Latest order</p>
+              <p className="mt-2 font-headline text-lg font-bold uppercase text-on-surface">
+                {latestOrder.id.slice(0, 8)} • {latestOrder.status}
+              </p>
+              <p className="mt-2 text-sm text-on-surface-variant">
+                {latestOrder.fulfillmentMode === "pickup"
+                  ? `${latestOrder.pickupZone} • ${latestOrder.etaMinutes} min`
+                  : `${latestOrder.seatLabel} • ${latestOrder.etaMinutes} min`}
+              </p>
+            </div>
+          ) : null}
+
+          <div className="flex-1 space-y-4 overflow-y-auto p-6">
+            <AnimatePresence>
+              {cart.length === 0 ? (
+                <motion.div
+                  exit={{ opacity: 0 }}
+                  className="flex h-full flex-col items-center justify-center text-on-surface-variant opacity-60"
+                >
+                  <VenueIcon name="shopping_basket" className="mb-2 text-4xl" />
+                  <p className="font-headline text-sm uppercase">Cart is empty</p>
+                </motion.div>
               ) : (
-                menu.map((item) => (
-                  <motion.div 
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    key={item.id} 
-                    className="bg-surface-container-lowest border border-outline-variant/10 rounded-xl p-5 hover:border-primary/40 transition group flex justify-between items-center cursor-pointer"
+                cart.map((item) => (
+                  <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    key={item.id}
+                    className="flex items-center justify-between"
                   >
-                     <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-surface-container-high flex items-center justify-center border border-outline-variant/15 text-primary group-hover:bg-primary/10 transition">
-                           <span className="material-symbols-outlined">{item.icon}</span>
-                        </div>
-                        <div>
-                           <h4 className="font-body font-semibold text-lg text-on-surface">{item.name}</h4>
-                           <p className="font-label text-xs text-tertiary tracking-wider uppercase mt-1">Ready in {item.prepTime}</p>
-                        </div>
-                     </div>
-                     <div className="flex flex-col items-end gap-3">
-                        <span className="font-headline font-black text-on-surface">${item.price.toFixed(2)}</span>
-                        <button onClick={(e) => { e.stopPropagation(); addToCart(item); }} className="bg-surface-variant text-on-surface hover:bg-primary hover:text-on-primary font-label text-xs font-bold uppercase rounded-full px-4 py-1.5 transition whitespace-nowrap">Add +</button>
-                     </div>
+                    <div>
+                      <p className="font-body text-sm font-semibold text-on-surface">{item.name}</p>
+                      <p className="mt-0.5 font-label text-xs text-on-surface-variant">
+                        Qty: {item.qty}
+                      </p>
+                    </div>
+                    <p className="font-headline font-bold text-on-surface">
+                      ${(item.price * item.qty).toFixed(2)}
+                    </p>
                   </motion.div>
                 ))
               )}
-           </div>
-        </section>
+            </AnimatePresence>
+          </div>
 
-        {/* Right: Checkout Sidebar */}
-        <section className="flex flex-col bg-surface-container-low border border-outline-variant/15 rounded-2xl overflow-hidden shadow-xl">
-           <div className="p-6 border-b border-outline-variant/15 bg-surface-container-highest flex justify-between items-center">
-              <h3 className="font-headline text-lg font-bold uppercase text-on-surface">Your Cart</h3>
-              <motion.span 
-                 key={cart.length}
-                 initial={{ scale: 1.5, rotate: -10 }}
-                 animate={{ scale: 1, rotate: 0 }}
-                 className="bg-primary/20 text-primary font-label text-xs uppercase font-bold px-3 py-1 rounded-full inline-block"
+          <div className="border-t border-outline-variant/15 bg-surface-container-lowest p-6">
+            <div className="mb-4 flex items-center justify-between">
+              <span className="font-headline text-sm font-bold uppercase text-on-surface-variant">
+                Total
+              </span>
+              <motion.span
+                key={total}
+                initial={{ scale: 1.2, color: "var(--color-primary)" }}
+                animate={{ scale: 1, color: "var(--color-on-surface)" }}
+                className="font-headline text-2xl font-black"
               >
-                 {cart.length} Items
+                ${total.toFixed(2)}
               </motion.span>
-           </div>
-           
-           <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              <AnimatePresence>
-                  {cart.length === 0 ? (
-                     <motion.div exit={{opacity: 0}} className="h-full flex flex-col items-center justify-center text-on-surface-variant opacity-60">
-                        <span className="material-symbols-outlined text-4xl mb-2">shopping_basket</span>
-                        <p className="font-headline text-sm uppercase">Cart is empty</p>
-                     </motion.div>
-                  ) : (
-                    cart.map(item => (
-                      <motion.div 
-                        initial={{ opacity: 0, x: 20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        key={item.id} 
-                        className="flex justify-between items-center"
-                      >
-                        <div>
-                          <p className="font-body font-semibold text-on-surface text-sm">{item.name}</p>
-                          <p className="font-label text-xs text-on-surface-variant mt-0.5">Qty: {item.qty}</p>
-                        </div>
-                        <p className="font-headline font-bold text-on-surface">${(item.price * item.qty).toFixed(2)}</p>
-                      </motion.div>
-                    ))
-                  )}
-              </AnimatePresence>
-           </div>
-
-           <div className="p-6 border-t border-outline-variant/15 bg-surface-container-lowest pb-[80px] lg:pb-6">
-              <div className="flex justify-between items-center mb-4">
-                 <span className="font-headline text-sm font-bold text-on-surface-variant uppercase">Total</span>
-                 <motion.span 
-                   key={total}
-                   initial={{ scale: 1.2, color: "var(--color-primary)" }}
-                   animate={{ scale: 1, color: "var(--color-on-surface)" }}
-                   className="font-headline text-2xl font-black"
-                 >
-                   ${total.toFixed(2)}
-                 </motion.span>
-              </div>
-              <motion.button 
-                 whileHover={cart.length > 0 ? { scale: 1.02 } : {}}
-                 whileTap={cart.length > 0 ? { scale: 0.98 } : {}}
-                 disabled={cart.length === 0} 
-                 className={`w-full py-4 rounded-xl font-label text-sm font-black uppercase tracking-widest transition-all ${cart.length > 0 ? "bg-primary text-on-primary hover:opacity-90 shadow-[0_0_20px_rgba(173,199,255,0.3)]" : "bg-surface-variant text-on-surface-variant cursor-not-allowed"}`}
-              >
-                 Checkout
-              </motion.button>
-           </div>
-        </section>
-
+            </div>
+            <motion.button
+              type="button"
+              whileHover={cart.length > 0 ? { scale: 1.02 } : {}}
+              whileTap={cart.length > 0 ? { scale: 0.98 } : {}}
+              disabled={cart.length === 0 || submitting}
+              onClick={handleCheckout}
+              className={`w-full rounded-xl py-4 font-label text-sm font-black uppercase tracking-widest transition-all ${
+                cart.length > 0 && !submitting
+                  ? "bg-primary text-on-primary shadow-[0_0_20px_rgba(173,199,255,0.3)] hover:opacity-90"
+                  : "cursor-not-allowed bg-surface-variant text-on-surface-variant"
+              }`}
+            >
+              {submitting ? "Placing order..." : `Checkout for ${selectedMode.label}`}
+            </motion.button>
+          </div>
+        </aside>
       </div>
     </motion.main>
   );

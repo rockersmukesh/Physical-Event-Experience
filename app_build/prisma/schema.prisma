@@ -6,8 +6,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -26,11 +27,15 @@ model Ticket {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   eventName String
+  venueName String
+  eventStart DateTime
   section   String
   row       String
   seat      String
   gate      String
+  qrCode    String   @unique
   status    String   @default("ACTIVE") // ACTIVE, SCANNED
+  createdAt DateTime @default(now())
 }
 
 model MenuItem {
@@ -51,7 +56,12 @@ model Order {
   user      User     @relation(fields: [userId], references: [id])
   status    String   @default("PENDING") // PENDING, PREPARING, READY, PICKED_UP
   total     Float
+  fulfillmentMode String
+  etaMinutes Int
+  pickupZone String?
+  seatLabel String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
   
   items     OrderItem[]
 }
@@ -70,5 +80,49 @@ model HubEvent {
   type      String   // PLAY, POLL, UPDATE
   text      String
   icon      String
+  pollOptions Json?
   createdAt DateTime @default(now())
+}
+
+model VenueWaitPoint {
+  id            String   @id
+  name          String
+  category      String
+  waitMinutes   Int
+  travelMinutes Int
+  zone          String
+  status        String
+  icon          String
+  routeHint     String
+  sortOrder     Int      @default(0)
+  isRecommended Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model VenueAlert {
+  id          String   @id @default(uuid())
+  title       String
+  detail      String
+  level       String
+  icon        String
+  ctaLabel    String?
+  ctaTargetId String?
+  active      Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model LiveGameState {
+  id            String   @id @default(uuid())
+  label         String   @unique @default("primary")
+  homeTeam      String
+  awayTeam      String
+  homeScore     Int
+  awayScore     Int
+  periodLabel   String
+  clock         String
+  possessionPct Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }

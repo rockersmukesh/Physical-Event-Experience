@@ -1,36 +1,59 @@
 "use client";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import VenueIcon from './VenueIcon';
 
 export default function Navigation() {
   const pathname = usePathname();
 
   return (
-    <nav className="bottom-nav">
-      <Link href="/" className={`nav-item ${pathname === '/' ? 'active' : ''}`}>
-        <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-        </svg>
-        <span>Home</span>
-      </Link>
-      <Link href="/map" className={`nav-item ${pathname === '/map' ? 'active' : ''}`}>
-        <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
-        </svg>
-        <span>Map</span>
-      </Link>
-      <Link href="/order" className={`nav-item ${pathname === '/order' ? 'active' : ''}`}>
-        <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-        </svg>
-        <span>Order</span>
-      </Link>
-      <Link href="/hub" className={`nav-item ${pathname === '/hub' ? 'active' : ''}`}>
-        <svg fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-        <span>Live Hub</span>
-      </Link>
+    <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-outline-variant/20 bg-background/95 px-2 py-3 backdrop-blur-xl">
+      <div className="mx-auto grid max-w-xl grid-cols-4 gap-2 rounded-2xl border border-outline-variant/15 bg-surface-container-low/80 p-2 shadow-2xl">
+        <Link
+          href="/"
+          className={`flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-bold uppercase tracking-[0.2em] transition ${
+            pathname === "/"
+              ? "bg-primary/15 text-primary"
+              : "text-on-surface-variant"
+          }`}
+        >
+          <VenueIcon name="home" className="text-[1.2rem]" />
+          <span>Home</span>
+        </Link>
+        <Link
+          href="/map"
+          className={`flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-bold uppercase tracking-[0.2em] transition ${
+            pathname === "/map"
+              ? "bg-primary/15 text-primary"
+              : "text-on-surface-variant"
+          }`}
+        >
+          <VenueIcon name="explore" className="text-[1.2rem]" />
+          <span>Map</span>
+        </Link>
+        <Link
+          href="/order"
+          className={`flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-bold uppercase tracking-[0.2em] transition ${
+            pathname === "/order"
+              ? "bg-primary/15 text-primary"
+              : "text-on-surface-variant"
+          }`}
+        >
+          <VenueIcon name="fastfood" className="text-[1.2rem]" />
+          <span>Order</span>
+        </Link>
+        <Link
+          href="/hub"
+          className={`flex flex-col items-center gap-1 rounded-xl px-2 py-3 text-xs font-bold uppercase tracking-[0.2em] transition ${
+            pathname === "/hub"
+              ? "bg-primary/15 text-primary"
+              : "text-on-surface-variant"
+          }`}
+        >
+          <VenueIcon name="stadium" className="text-[1.2rem]" />
+          <span>Live Hub</span>
+        </Link>
+      </div>
     </nav>
   );
 }

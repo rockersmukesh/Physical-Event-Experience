@@ -1,4 +1,4 @@
-import Link from 'next/link';
+import VenueIcon from "@/components/VenueIcon";
 
 export default function StaffDashboard() {
   return (
@@ -9,7 +9,7 @@ export default function StaffDashboard() {
            <h1 className="font-headline text-4xl font-black uppercase text-on-surface">Staff Operations</h1>
         </div>
         <div className="bg-error/10 border border-error/30 text-error px-4 py-2 rounded font-label text-sm uppercase font-black tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-[1.2rem]">admin_panel_settings</span>
+            <VenueIcon name="admin_panel_settings" className="text-[1.2rem]" />
             Access Level: Supervisor
         </div>
       </header>
@@ -18,7 +18,7 @@ export default function StaffDashboard() {
          <div className="lg:col-span-2 space-y-8">
             <div className="bg-surface-container-low border border-outline-variant/15 rounded-2xl p-6">
                 <h3 className="font-headline text-xl font-bold uppercase mb-4 text-on-surface flex items-center gap-2">
-                   <span className="material-symbols-outlined text-primary text-xl">broadcast_on_personal</span>
+                   <VenueIcon name="broadcast_on_personal" className="text-primary text-xl" />
                    Broadcast Alert
                 </h3>
                 <div className="bg-surface-container-lowest p-4 rounded-xl border border-outline-variant/20 mb-4">
