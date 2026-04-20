@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stadium Pulse (Physical Event Experience)
 
-## Getting Started
+A modern, high-fidelity web application built to transform the physical event and stadium experience. Features include live queue-aware routing, real-time concessions ordering, and active event coordination utilizing a full Next.js and Prisma architecture.
 
-First, run the development server:
+## 🚀 Technologies
 
+- **Frontend:** Next.js (App Router), React, Tailwind CSS
+- **Backend:** Next.js Server Components / Actions
+- **Database:** Prisma ORM connected to PostgreSQL (Neon)
+- **Deployment:** Google Cloud Run
+
+## 🛠️ Local Development
+
+### 1. Prerequisites
+Ensure you have Node.js and `npm` installed. You will also need a PostgreSQL database URL.
+
+### 2. Install Dependencies
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 3. Environment Variables
+Create a `.env` file in the root codebase directory (`app_build/.env`) and add your database connections:
+```env
+DATABASE_URL="postgresql://user:password@host/db?sslmode=require&channel_binding=require"
+DIRECT_URL="postgresql://user:password@host/db?sslmode=require&channel_binding=require"
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### 4. Database Setup
+Run the following commands to construct the database schema and populate it with the mock stadium demo data:
+```bash
+npm run db:setup
+```
+*(This automatically runs `prisma db push` and `node prisma/seed.js` to create mock event data).*
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+If you ever see a `Cannot find module '.prisma/client'` error, you need to re-generate the Prisma client explicitly:
+```bash
+npx prisma generate
+```
 
-## Learn More
+### 5. Start the Application
+```bash
+npm run dev
+```
+Open [http://localhost:3000](http://localhost:3000) with your browser to see the running dashboard.
 
-To learn more about Next.js, take a look at the following resources:
+## ☁️ Deployment (Google Cloud Run)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+This project has been explicitly optimized for building and deploying to Google Cloud Run using natively supported Cloud Buildpacks. The `build` script in `package.json` integrates `prisma generate` to ensure type-safe database queries work out-of-the-box in the serverless container.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Deploying via Google Cloud CLI
 
-## Deploy on Vercel
+To deploy manually, ensure you have the `gcloud` CLI installed and authenticated. From the `app_build` directory, execute:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+gcloud run deploy physical-event-demo \
+  --source . \
+  --project <your-project-id> \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars="DATABASE_URL=your_neon_url_here,DIRECT_URL=your_neon_url_here" \
+  --set-build-env-vars="DATABASE_URL=your_neon_url_here,DIRECT_URL=your_neon_url_here"
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> **Important**: You MUST pass the database URLs into both `--set-env-vars` (for the production runtime backend) AND `--set-build-env-vars` (so Next.js can safely pre-render static routing pages during the containerization step without failing).
